@@ -10,7 +10,7 @@ from telegram.ext import (
 import google.generativeai as genai
 import edge_tts
 
-TELEGRAM_BOT_TOKEN = "8928921868:AAGnXVYa5Cbkzhxq3ObDuM3Dthra1CM"
+TELEGRAM_BOT_TOKEN = "8928921868:AAGnXVYa5CbkzhsxQ3Oq0BduM3TDthrA1CM"
 GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_Oyq9TjRbTbnovn4c50z--121ITRfhew"
 
 genai.configure(api_key=GEMINI_API_KEY)
