@@ -10,18 +10,13 @@ from telegram.ext import (
 import google.generativeai as genai
 import edge_tts
 
-# আপনার দেওয়া টোকেন ও এপিআই কি
 TELEGRAM_BOT_TOKEN = "8928921868:AAGnXVYa5Cbkzhxq3ObDuM3Dthra1CM"
 GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_Oyq9TjRbTbnovn4c50z--121ITRfhew"
 
-# জেমিনি এআই কনফিগারেশন
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# মাইক্রোসফট ন্যাচারাল মেয়েদের বাংলা ভয়েস
 VOICE_NAME = "bn-BD-NabanitaNeural"
-
-# ইউজারের স্টেট ট্র্যাক করার জন্য ডিকশনারি
 user_states = {}
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -33,7 +28,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text_lower = user_text.lower()
 
-    # পেমেন্ট সংক্রান্ত কথা বললে বিকাশ/নগদ নম্বর দিয়ে দেওয়া
     if "পেমেন্ট" in text_lower or "বিকাশ" in text_lower or "নগদ" in text_lower:
         payment_reply = (
             "পেমেন্ট করার জন্য আমাদের বিকাশ ও নগদ নম্বর:\n"
@@ -43,7 +37,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(payment_reply, parse_mode="Markdown")
         return
 
-    # যদি ইউজারের কোনো অপশন সিলেক্ট না করা থাকে, তবে অপশন জানতে চাওয়া
     if chat_id not in user_states:
         if "সার্ভিস" in text_lower or "service" in text_lower or "servis" in text_lower:
             user_states[chat_id] = "service"
@@ -114,7 +107,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         else:
-            # প্রথম মেসেজ পেলে জানতে চাওয়া কি চাচ্ছে
             intro_reply = (
                 "স্বাগতম! আপনার কি লাগবে?\n\n**সার্ভিস** (কল বা চ্যাট)\n**গ্রুপ** (লিস্ট দেখতে চান)\n\n"
                 "দয়া করে লিখে জানান আপনার কোনটি লাগবে।"
@@ -122,7 +114,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(intro_reply, parse_mode="Markdown")
             return
 
-    # অপশন সিলেক্ট করার পর সাধারণ কথার উত্তর জেমিনি দিয়ে ভয়েস নোটে দেওয়া
     prompt = (
         "তুমি একজন রিয়েল তরুণী মেয়ে (Samiya)। টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে যেভাবে "
         f"ফ্লামি শর্ট, মিষ্টি এবং প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে উত্তর দাও। মেসেজটি হলো: \"{user_text}\""
@@ -152,15 +143,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if os.path.exists(audio_path):
             os.remove(audio_path)
 
-
 def main():
     app = ApplicationBuilder().token(TELEGRAM_BOT_TOKEN).build()
-    app.add_handler(
-        MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
-    )
+    app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
     print("SamiyaVoice_bot is running 24/7...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
