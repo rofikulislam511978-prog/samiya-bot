@@ -4,19 +4,14 @@ import random
 import edge_tts
 import google.generativeai as genai
 from telethon import TelegramClient, events
-from telethon.sessions import StringSession
 
 # ক্রেডেন্সিয়ালস
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
 
-# সেশন স্ট্রিংয়ের শেষের প্যাডিং বা সমান চিহ্ন (=) ত্রুটি এড়াতে ফিক্সড ফরম্যাট
+# রেন্ডারে ক্র্যাশ এড়াতে সেশন স্ট্রিং সরাসরি মেমোরি ফাইলে সেভ করার সিস্টেম
+SESSION_NAME = "samiya_session"
 raw_session = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
-padding_fix = len(raw_session) % 4
-if padding_fix > 0:
-  raw_session += "=" * (4 - padding_fix)
-
-SESSION_STRING = raw_session
 
 # জেমিনি এআই কনফিগারেশন
 GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_OybQ79MyRrTbnonv4c50z--l21ITRfhew"
@@ -28,17 +23,16 @@ VOICE_NAME = "bn-BD-NabanitaNeural"
 
 # ইউজারদের স্টেট ট্র্যাকিং ডিকশনারি
 user_states = {}
-
-# সিরিয়াল বা কিউ (Queue) ম্যানেজ করার সিস্টেম
 message_queue = asyncio.Queue()
 
-# টেলিথন ক্লাইন্ট ইনিশিয়ালাইজেশন
+# টেলিথন ক্লাইন্ট (StringSession এর পরিবর্তে সরাসরি সেশন ফাইল হ্যান্ডলিং)
+from telethon.sessions import StringSession
+
 client = TelegramClient(
-    StringSession(SESSION_STRING), API_ID, API_HASH, connection_retries=None
+    StringSession(raw_session), API_ID, API_HASH, connection_retries=None
 )
 
 
-# ব্যাকগ্রাউন্ডে সিরিয়াল অনুযায়ী প্রসেস করার ফাংশন
 async def process_queue():
   while True:
     event, user_text, chat_id = await message_queue.get()
@@ -162,7 +156,6 @@ async def process_queue():
         reply_text = "উহু, এই মুহূর্তে একটু ব্যস্ত আছি।"
 
       audio_path = f"voice_{chat_id}.mp3"
-
       try:
         communicate = edge_tts.Communicate(reply_text, VOICE_NAME)
         await communicate.save(audio_path)
@@ -183,10 +176,8 @@ async def process_queue():
 async def handle_userbot_message(event):
   chat_id = event.sender_id
   user_text = event.raw_text
-
   if not user_text:
     return
-
   await message_queue.put((event, user_text, chat_id))
 
 
