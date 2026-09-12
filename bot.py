@@ -6,7 +6,7 @@ import google.generativeai as genai
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
-# রেন্ডারের Environment Variables থেকে ক্রেন্ডেনশিয়ালস নেওয়া
+# আপনার জেনারেট করা সেশন অনুযায়ী সঠিক API_ID ও API_HASH বসানো হলো
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
 SESSION_STRING = os.environ.get("SESSION")
@@ -22,19 +22,21 @@ VOICE_NAME = "bn-BD-NabanitaNeural"
 # ইউজারদের স্টেট ট্র্যাকিং ডিকশনারি
 user_states = {}
 
-# সিরিয়াল বা কিউ (Queue) ম্যানেজ করার সিস্টেম (যাতে একের পর এক নিরাপদে রিপ্লাই যায়)
+# সিরিয়াল বা কিউ (Queue) ম্যানেজ করার সিস্টেম
 message_queue = asyncio.Queue()
 
-# টেলিথন ক্লাইন্ট ইনিশিয়ালাইজেশন (StringSession)
-client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+# টেলিথন ক্লাইন্ট ইনিশিয়ালাইজেশন (Render এর জন্য timeout বাড়িয়ে দেওয়া হয়েছে)
+client = TelegramClient(
+    StringSession(SESSION_STRING), API_ID, API_HASH, connection_retries=None
+)
 
 
-# ব্যাকগ্রাউন্ডে সিরিয়াল অনুযায়ী একে একে প্রসেস করার ফাংশন
+# ব্যাকগ্রাউন্ডে সিরিয়াল অনুযায়ী প্রসেস করার ফাংশন
 async def process_queue():
   while True:
     event, user_text, chat_id = await message_queue.get()
     try:
-      # আইডি সুরক্ষিত রাখতে মানুষের মতো ঠিক ১৫ সেকেন্ডের আশেপাশে (১২ থেকে ১৮ সেকেন্ড) বিরতি নেওয়া
+      # আইডি সুরক্ষিত রাখতে ১৫ সেকেন্ডের আশেপাশে (১২ থেকে ১৮ সেকেন্ড) বিরতি নেওয়া
       delay = random.uniform(12, 18)
       await asyncio.sleep(delay)
 
@@ -51,7 +53,7 @@ async def process_queue():
         message_queue.task_done()
         continue
 
-      # ২. প্রথমবার মেসেজ দিলে অপশন বা স্টেট চেক করা
+      # ২. প্রথমবার মেসেজ দিলে অপশন চেক করা
       if chat_id not in user_states:
         if (
             "সার্ভিস" in text_lower
@@ -139,7 +141,7 @@ async def process_queue():
           message_queue.task_done()
           continue
 
-      # ৩. জেমিনি এআই দিয়ে মিষ্টি কথায় ভয়েস নোট তৈরি ও রিপ্লাই পাঠানো
+      # ৩. জেমিনি এআই দিয়ে ভয়েস নোট তৈরি ও রিপ্লাই পাঠানো
       prompt = (
           "তুমি একজন রিয়েল তরুণী মেয়ে (Samiya)। টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে"
           f' যেভাবে একদম শর্ট, মিষ্টি ও প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে'
@@ -161,18 +163,15 @@ async def process_queue():
       try:
         communicate = edge_tts.Communicate(reply_text, VOICE_NAME)
         await communicate.save(audio_path)
-
-        # মেয়ে মানুষের মিষ্টি কন্ঠের ভয়েস নোট হিসেবে ইনবক্সে পাঠানো
         await event.respond(file=audio_path, voice_note=True)
       except Exception:
-        # ভয়েস তৈরিতে সমস্যা হলে টেক্সট পাঠিয়ে দেওয়া
         await event.respond(reply_text)
       finally:
         if os.path.exists(audio_path):
           os.remove(audio_path)
 
     except Exception as e:
-      print(f"ত্রুটি ঘটেছে: {e}")
+      print(f"ত্রুটি: {e}")
     finally:
       message_queue.task_done()
 
@@ -185,14 +184,14 @@ async def handle_userbot_message(event):
   if not user_text:
     return
 
-  # ইনবক্সে মেসেজ আসামাত্রই তা সিরিয়ালের লাইনে (Queue) যুক্ত হয়ে যাবে
   await message_queue.put((event, user_text, chat_id))
 
 
 async def main():
-  print("Samiya Smart Serial Userbot চালু হচ্ছে...")
+  print("Samiya Smart Userbot চালু হচ্ছে...")
   asyncio.create_task(process_queue())
   await client.start()
+  print("বট সফলভাবে রান করছে!")
   await client.run_until_disconnected()
 
 
