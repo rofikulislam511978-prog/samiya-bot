@@ -6,10 +6,17 @@ import google.generativeai as genai
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
-# ক্রেডেন্সিয়ালস এবং সরাসরি কোডের ভেতরে বসানো সেশন স্ট্রিং
+# ক্রেডেন্সিয়ালস
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
-SESSION_STRING = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
+
+# সেশন স্ট্রিংয়ের শেষের প্যাডিং বা সমান চিহ্ন (=) ত্রুটি এড়াতে ফিক্সড ফরম্যাট
+raw_session = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
+padding_fix = len(raw_session) % 4
+if padding_fix > 0:
+  raw_session += "=" * (4 - padding_fix)
+
+SESSION_STRING = raw_session
 
 # জেমিনি এআই কনফিগারেশন
 GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_OybQ79MyRrTbnonv4c50z--l21ITRfhew"
@@ -36,13 +43,11 @@ async def process_queue():
   while True:
     event, user_text, chat_id = await message_queue.get()
     try:
-      # আইডি সুরক্ষিত রাখতে ১৫ সেকেন্ডের আশেপাশে (১২ থেকে ১৮ সেকেন্ড) বিরতি নেওয়া
       delay = random.uniform(12, 18)
       await asyncio.sleep(delay)
 
       text_lower = user_text.lower()
 
-      # ১. পেমেন্ট সংক্রান্ত মেসেজ হ্যান্ডলিং
       if "পেমেন্ট" in text_lower or "বিকাশ" in text_lower or "নগদ" in text_lower:
         payment_reply = (
             "পেমেন্ট করার জন্য আমাদের বিকাশ ও নগদ নম্বর:\n"
@@ -53,7 +58,6 @@ async def process_queue():
         message_queue.task_done()
         continue
 
-      # ২. প্রথমবার মেসেজ দিলে অপশন চেক করা
       if chat_id not in user_states:
         if (
             "সার্ভিস" in text_lower
@@ -141,7 +145,6 @@ async def process_queue():
           message_queue.task_done()
           continue
 
-      # ৩. জেমিনি এআই দিয়ে ভয়েস নোট তৈরি ও রিপ্লাই পাঠানো
       prompt = (
           "তুমি একজন রিয়েল তরুণী মেয়ে (Samiya)। টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে"
           f' যেভাবে একদম শর্ট, মিষ্টি ও প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে'
