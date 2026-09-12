@@ -6,10 +6,10 @@ import google.generativeai as genai
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
-# আপনার জেনারেট করা সেশন অনুযায়ী সঠিক API_ID ও API_HASH বসানো হলো
+# ক্রেডেন্সিয়ালস এবং সরাসরি কোডের ভেতরে বসানো সেশন স্ট্রিং
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
-SESSION_STRING = os.environ.get("SESSION")
+SESSION_STRING = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
 
 # জেমিনি এআই কনফিগারেশন
 GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_OybQ79MyRrTbnonv4c50z--l21ITRfhew"
@@ -25,7 +25,7 @@ user_states = {}
 # সিরিয়াল বা কিউ (Queue) ম্যানেজ করার সিস্টেম
 message_queue = asyncio.Queue()
 
-# টেলিথন ক্লাইন্ট ইনিশিয়ালাইজেশন (Render এর জন্য timeout বাড়িয়ে দেওয়া হয়েছে)
+# টেলিথন ক্লাইন্ট ইনিশিয়ালাইজেশন
 client = TelegramClient(
     StringSession(SESSION_STRING), API_ID, API_HASH, connection_retries=None
 )
