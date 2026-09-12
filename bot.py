@@ -1,114 +1,200 @@
+import asyncio
 import os
-import logging
-import threading
-from flask import Flask
-from telethon import TelegramClient, events
-import google.generativeai as genai
+import random
 import edge_tts
+import google.generativeai as genai
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
-# লগিং সেটআপ
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# কনফিগারেশন (আপনার সঠিক তথ্য দিয়ে সেট করা)
+# রেন্ডারের Environment Variables থেকে ক্রেন্ডেনশিয়ালস নেওয়া
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
-GEMINI_API_KEY = "AQ.Ab8RN6KZUV1Wez0x7Rouv49MQJCrBOqQqQaFvJgOkpwd8CsXgA"
+SESSION_STRING = os.environ.get("SESSION")
 
-# জেমিনি কনফিগার করুন
+# জেমিনি এআই কনফিগারেশন
+GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_OybQ79MyRrTbnonv4c50z--l21ITRfhew"
 genai.configure(api_key=GEMINI_API_KEY)
-generation_config = {"temperature": 0.7, "max_output_tokens": 150}
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash", generation_config=generation_config
-)
+model = genai.GenerativeModel("gemini-1.5-flash")
 
+# মাইক্রোসফটের ন্যাচারাল মেয়ে মানুষের কন্ঠের ভয়েস
 VOICE_NAME = "bn-BD-NabanitaNeural"
 
-# টেলিথন ক্লায়েন্ট ইনিশিয়ালাইজ (ইউজারবট)
-client = TelegramClient("samiya_session", API_ID, API_HASH)
+# ইউজারদের স্টেট ট্র্যাকিং ডিকশনারি
+user_states = {}
 
-# ফ্লাস্ক সার্ভার (রেন্ডার সচল রাখার জন্য)
-app = Flask(__name__)
+# সিরিয়াল বা কিউ (Queue) ম্যানেজ করার সিস্টেম (যাতে একের পর এক নিরাপদে রিপ্লাই যায়)
+message_queue = asyncio.Queue()
 
-
-@app.route("/")
-def home():
-  return "Samiya Userbot is running successfully!"
+# টেলিথন ক্লাইন্ট ইনিশিয়ালাইজেশন (StringSession)
+client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
 
 
-def run_flask():
-  port = int(os.environ.get("PORT", 10000))
-  app.run(host="0.0.0.0", port=port)
+# ব্যাকগ্রাউন্ডে সিরিয়াল অনুযায়ী একে একে প্রসেস করার ফাংশন
+async def process_queue():
+  while True:
+    event, user_text, chat_id = await message_queue.get()
+    try:
+      # আইডি সুরক্ষিত রাখতে মানুষের মতো ঠিক ১৫ সেকেন্ডের আশেপাশে (১২ থেকে ১৮ সেকেন্ড) বিরতি নেওয়া
+      delay = random.uniform(12, 18)
+      await asyncio.sleep(delay)
+
+      text_lower = user_text.lower()
+
+      # ১. পেমেন্ট সংক্রান্ত মেসেজ হ্যান্ডলিং
+      if "পেমেন্ট" in text_lower or "বিকাশ" in text_lower or "নগদ" in text_lower:
+        payment_reply = (
+            "পেমেন্ট করার জন্য আমাদের বিকাশ ও নগদ নম্বর:\n"
+            "💳 বিকাশ / নগদ: `01346133685`\n\n"
+            "টাকা পাঠিয়ে স্ক্রিনশট দিন।"
+        )
+        await event.respond(payment_reply, parse_mode="md")
+        message_queue.task_done()
+        continue
+
+      # ২. প্রথমবার মেসেজ দিলে অপশন বা স্টেট চেক করা
+      if chat_id not in user_states:
+        if (
+            "সার্ভিস" in text_lower
+            or "service" in text_lower
+            or "servis" in text_lower
+        ):
+          user_states[chat_id] = "service"
+          service_text = (
+              "বয়স 20 বছর, সাইজঃ 34\" গায়ের রঙ ফর্সা।\n\n"
+              "✅ভিডিও কল রেট..\n"
+              "🕒 ০৫ মিনিট – ৮০ টাকা\n"
+              "🕡 ১০ মিনিট – ১২০ টাকা\n"
+              "🕒 ১৫ মিনিট - ১৪০ টাকা\n"
+              "🕒 ২০ মিনিট - ১৮০ টাকা\n"
+              "🕒 ৩০ মিনিট - ২২০ টাকা\n"
+              "🕒 ৬০ মিনিট - ৫০০ টাকা\n\n"
+              "✅ডেমো কল:- ১মিনিট :- ৫০৳ \n\n"
+              "✅অডিও কল রেট..\n"
+              "🕒 ০৫ মিনিট – ৫০ টাকা\n"
+              "🕡 ১০ মিনিট –১০০ টাকা\n\n"
+              "গুরুত্বপূর্ণ:-\n"
+              "✊ডেমো ১ মিনিট ৫০ টাকা\n"
+              "⚠️কোন পিক হবে না।\n"
+              "✊রিয়েল বা সরাসরি সেক্স করি না\n"
+              "✊মেসেজ দিয়ে জিজ্ঞেস করবেন না যে রিয়েল হবে \n"
+              "✊প্রেম ভালোবাসা বিয়ের কথা বললে ব্লক খাবেন। \n"
+              "🔞 সার্ভিস নিয়ে ভাল লাগলে আবার আসবেন।💕"
+          )
+          await event.respond(service_text)
+          message_queue.task_done()
+          continue
+
+        elif (
+            "গ্রুপ" in text_lower
+            or "group" in text_lower
+            or "gruf" in text_lower
+        ):
+          user_states[chat_id] = "group"
+          group_text = (
+              "আপনারা কেউ গ্রুপ কিনলে আমাদের কাছ থেকে কিনতে পারেন\n\n"
+              "🍀আজকের সেরা অফার 🍀\n"
+              "━━━━━━━━━━━━━━━━━━\n"
+              "🍀বাংলা গ্রুপ 20 টি 300 টাকা\n"
+              "🍀ইন্ডিয়ান গ্রুপ 15 টি 300 টাকা\n"
+              "🍀রেপ গ্রুপ 3 টি 300 টাকা\n"
+              "🍀ট্যাঙ্গো গ্রুপ 5 টি 300 টাকা\n"
+              "🍀বাচ্চাদের গ্রুপ 5 টি 350 টাকা\n"
+              "🍀সিসিটিভি গ্রুপ 4 টি 300 টাকা\n"
+              "🍀ওয়েব সিরিজ 3 টি 350 টাকা\n"
+              "🍀জাপানি গ্রুপ 5 টি 300 টাকা\n"
+              "🍀যাত্রা ডান্স গ্রুপ 1 টি 350 টাকা\n"
+              "🍀হিজড়াদের গ্রুপ 2 টি 300টাকা\n"
+              "🍀লেসবিয়ান গ্রুপ 4 টি 300টাকা\n"
+              "🍀তামিল গ্রুপ 10 টি 350 টাকা\n"
+              "🍀চায়না গ্রুপ 10 টি 350 টাকা\n"
+              "🍀ভাবি বৌদি গ্রূপ 5 টি 300টাকা\n"
+              "🍀ভাইরাল গ্রুপ 2 টি 400 টাকা\n"
+              "🍀Chamet গ্রুপ 2 টি 300 টাকা\n"
+              "🍀ছেলে ছেলে গ্রুপ 2 টি 300টাকা\n"
+              "🍀গোসলের গুপ 2 টি 350টাকা\n"
+              "🍀কোরিয়ান গ্রুপ 4 টি 300 টাকা\n"
+              "🍀হিজাবি গ্রুপ 3 টি 300 টাকা\n"
+              "🍀হিডেন গ্রুপ 5 টি 300 টাকা\n"
+              "🍀পারিবারিক গ্রুপ 5 টি 300টাকা\n"
+              "🍀মা ছেলের গুরুপ 5 টি 300টাকা\n"
+              "🍀ভাই বোনের গ্রুপ 4 টি 300 টাকা\n"
+              "🍀ফিঙ্গারিং ভিডিওগ্রুপ 4 টি400টাকা\n"
+              "🍀বড় দুধের ভিডিওগ্রুপ 1 টি 300 টাকা\n"
+              "━━━━━━━━━━━━━━━━━━\n"
+              "বিশেষ করে যারা কিনতে পারবেন তাড়াই মেসেজ করবেন আমাদের কাছে পেমেন্ট কারার জন্য\n"
+              "🍀 ❈ নগদ ❈    ❈ বিকাশ ❈\n"
+              "🍀 অল গ্রুপ ২০০০ টাকা 🍀\n"
+              "━━━━━━━━━━━━━━━━━━\n"
+              "টাকা দেওয়ার আগে কোন গ্রুপ দেওয়া হয় না যারা কিনবেন শুধুমাত্র তারাই ইনবক্সে মেসেজ করেন গ্রুপ কেনার জন্য এই আইডিতে মেসেজ করেন: @SamiyaSamiya9"
+          )
+          await event.respond(group_text)
+          message_queue.task_done()
+          continue
+        else:
+          intro_reply = (
+              "স্বাগতম! আপনার কি লাগবে?\n\n১. **সার্ভিস** (কল বা চ্যাট)\n২."
+              " **গ্রুপ** (লিস্ট দেখতে চান)\n\nদয়া করে লিখে জানান আপনার কোনটি লাগবে।"
+          )
+          await event.respond(intro_reply, parse_mode="md")
+          message_queue.task_done()
+          continue
+
+      # ৩. জেমিনি এআই দিয়ে মিষ্টি কথায় ভয়েস নোট তৈরি ও রিপ্লাই পাঠানো
+      prompt = (
+          "তুমি একজন রিয়েল তরুণী মেয়ে (Samiya)। টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে"
+          f' যেভাবে একদম শর্ট, মিষ্টি ও প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে'
+          f' উত্তর দাও। মেসেজটি হলো: "{user_text}"'
+      )
+
+      try:
+        ai_response = model.generate_content(prompt)
+        reply_text = (
+            ai_response.text.strip()
+            if ai_response.text
+            else "আচ্ছা, বিষয়টি বুঝতে পেরেছি।"
+        )
+      except Exception:
+        reply_text = "উহু, এই মুহূর্তে একটু ব্যস্ত আছি।"
+
+      audio_path = f"voice_{chat_id}.mp3"
+
+      try:
+        communicate = edge_tts.Communicate(reply_text, VOICE_NAME)
+        await communicate.save(audio_path)
+
+        # মেয়ে মানুষের মিষ্টি কন্ঠের ভয়েস নোট হিসেবে ইনবক্সে পাঠানো
+        await event.respond(file=audio_path, voice_note=True)
+      except Exception:
+        # ভয়েস তৈরিতে সমস্যা হলে টেক্সট পাঠিয়ে দেওয়া
+        await event.respond(reply_text)
+      finally:
+        if os.path.exists(audio_path):
+          os.remove(audio_path)
+
+    except Exception as e:
+      print(f"ত্রুটি ঘটেছে: {e}")
+    finally:
+      message_queue.task_done()
 
 
-# ইনকামিং মেসেজ হ্যান্ডলার (শুধু ইনবক্স বা প্রাইভেট চ্যাটের জন্য)
 @client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
-async def handle_message(event):
-  sender = await event.get_sender()
-  if sender.bot:
-    return  # বট মেসেজ ইগ্নোর করবে
-
+async def handle_userbot_message(event):
+  chat_id = event.sender_id
   user_text = event.raw_text
+
   if not user_text:
     return
 
-  # পেমেন্ট সম্পর্কিত নির্দেশনা
-  if "পেমেন্ট" in user_text.lower():
-    payment_reply = (
-        "পেমেন্ট করার জন্য আমাদের বিকাশ ও নগদ নম্বর:\n"
-        "💳 বিকাশ / নগদ : `01346133685`\n"
-        "টাকা পাঠিয়ে স্ক্রিনশট দিন!"
-    )
-    await event.respond(payment_reply, parse_mode="markdown")
-    return
+  # ইনবক্সে মেসেজ আসামাত্রই তা সিরিয়ালের লাইনে (Queue) যুক্ত হয়ে যাবে
+  await message_queue.put((event, user_text, chat_id))
 
-  # সার্ভিস বা প্রাইস লিস্ট
-  if "সার্ভিস" in user_text.lower() or "service" in user_text.lower():
-    service_text = (
-        "⭐ **সার্ভিস ও রেট লিস্ট:**\n"
-        "⏱️ ০৫ মিনিট - ৮০ টাকা\n"
-        "⏱️ ১০ মিনিট - ১২০ টাকা\n"
-        "⏱️ ১৫ মিনিট - ১৬০ টাকা\n"
-        "⏱️ ২০ মিনিট - ১৮০ টাকা\n"
-        "⏱️ ৩০ মিনিট - ২২০ টাকা\n"
-        "⏱️ ৬০ মিনিট - ৪০০ টাকা\n"
-        "⚠️ কোনো পিক হবে না!\n"
-        "📩 মেসেজ দিয়ে জিজ্ঞেস করবেন না যে রিয়েল হবে কি না"
-    )
-    await event.respond(service_text)
-    return
 
-  # জেমিনি দিয়ে এআই চ্যাট এবং ভয়েস রিপ্লাই তৈরি
-  prompt = f"তুমি একজন রিয়েল তরুণী মেয়ে (Sumaiya) টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে যেভাবে চ্যাট করো, মিষ্টি এবং প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে উত্তর দাও। মেসেজটি হলো: \"{user_text}\""
-
-  try:
-    ai_response = model.generate_content(prompt)
-    reply_text = (
-        ai_response.text.strip() if ai_response.text else "আহা, বিষয়টি বুঝতে পেরেছি।"
-    )
-  except Exception:
-    reply_text = "উহ, এই মুহূর্তে একটু ব্যস্ত আছি।"
-
-  audio_path = "voice_reply.mp3"
-  try:
-    communicate = edge_tts.Communicate(reply_text, VOICE_NAME)
-    await communicate.save(audio_path)
-
-    # ভয়েস মেসেজ হিসেবে পাঠানো
-    await client.send_file(event.chat_id, audio_path, voice_note=True)
-  except Exception:
-    # ভয়েস ফেইল করলে টেক্সট রিপ্লাই পাঠাবে
-    await event.respond(reply_text)
-  finally:
-    if os.path.exists(audio_path):
-      os.remove(audio_path)
+async def main():
+  print("Samiya Smart Serial Userbot চালু হচ্ছে...")
+  asyncio.create_task(process_queue())
+  await client.start()
+  await client.run_until_disconnected()
 
 
 if __name__ == "__main__":
-  # ব্যাকগ্রাউন্ডে ফ্লাস্ক সার্ভার চালু করা
-  server_thread = threading.Thread(target=run_flask, daemon=True)
-  server_thread.start()
-
-  logger.info("Samiya Userbot is starting...")
-  client.start()
-  client.run_until_disconnected()
+  asyncio.run(main())
