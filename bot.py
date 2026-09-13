@@ -1,63 +1,87 @@
 import asyncio
 import os
 import random
-import edge_tts
-import google.generativeai as genai
 from telethon import TelegramClient, events
-from telethon.sessions import StringSession
+from telethon.errors import FloodWaitError
+import google.generativeai as genai
+import edge_tts
 
-# আপনার টেলিগ্রাম API_ID এবং API_HASH
-API_ID = 38710926
-API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
-
-# আপনার জেনারেট করা সেশন কোড (প্যাডিং এরর মুক্ত রাখতে দুটি ভাগে বিভক্ত)
-part1 = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_"
-part2 = "Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
-SESSION_STRING = part1 + part2
+# রেলওয়ে বা এনভায়রনমেন্ট থেকে ভ্যারিয়েবলগুলো রিড করা
+API_ID = int(os.getenv("API_ID", "38710926"))
+API_HASH = os.getenv("API_HASH", "9047aad732a7b1793fcd1857c56d7d3f")
+SESSION_STRING = os.getenv("SESSION") or os.getenv("STRING_SESSION")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # জেমিনি এআই কনফিগারেশন
-GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_OybQ79MyRrTbnonv4c50z--l21ITRfhew"
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
+generation_config = {
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "top_k": 40,
+    "max_output_tokens": 800,
+}
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash",
+    generation_config=generation_config,
+    system_instruction=(
+        "You are Samiya, a friendly human girl chatting on Telegram. "
+        "Reply naturally in Bengali, keeping it concise, sweet, and conversational."
+    ),
+)
 
-# মাইক্রোসফটের ন্যাচারাল মেয়ে মানুষের কন্ঠের ভয়েস
+# মাইক্রোসফটের ন্যাচারাল মেয়েদের বাংলা ভয়েস
 VOICE_NAME = "bn-BD-NabanitaNeural"
 
-# ইউজারদের স্টেট ট্র্যাকিং ও কিউ সিস্টেম
-user_states = {}
-message_queue = asyncio.Queue()
-
-# টেলিথন ক্লাইন্ট
+# টেলিগ্রাম ক্লায়েন্ট ইনিশিয়ালাইজেশন
 client = TelegramClient(
-    StringSession(SESSION_STRING), API_ID, API_HASH, connection_retries=None
+    session=SESSION_STRING, api_id=API_ID, api_hash=API_HASH
 )
+
+# ইউজারদের স্টেট ট্র্যাক করার জন্য ডিকশনারি
+user_states = {}
+
+# সিরিয়াল অনুযায়ী কাজ করার জন্য কিউ (Queue) এবং লক
+message_queue = asyncio.Queue()
+is_processing = False
+
+
+async def text_to_speech(text, filename="response.mp3"):
+  communicate = edge_tts.Communicate(text, VOICE_NAME)
+  await communicate.save(filename)
+  return filename
 
 
 async def process_queue():
-  while True:
-    event, user_text, chat_id = await message_queue.get()
+  global is_processing
+  while not message_queue.empty():
+    is_processing = True
+    sender_id, event, user_text, chat_id = await message_queue.get()
+
     try:
-      delay = random.uniform(12, 18)
+      # ১. মানুষের মতো ১৫-১৬ সেকেন্ড বা র্যান্ডম বিরতি
+      delay = random.uniform(15, 18)
       await asyncio.sleep(delay)
 
       text_lower = user_text.lower()
 
+      # পেমেন্ট সংক্রান্ত কথা বললে বিকাশ/নগদ নম্বর দিয়ে দেওয়া
       if "পেমেন্ট" in text_lower or "বিকাশ" in text_lower or "নগদ" in text_lower:
         payment_reply = (
             "পেমেন্ট করার জন্য আমাদের বিকাশ ও নগদ নম্বর:\n"
             "💳 বিকাশ / নগদ: `01346133685`\n\n"
             "টাকা পাঠিয়ে স্ক্রিনশট দিন।"
         )
-        await event.respond(payment_reply, parse_mode="md")
-        message_queue.task_done()
+        async with event.client.action(chat_id, "record-audio"):
+          audio_file = await text_to_speech(payment_reply)
+          await asyncio.sleep(2)
+        await event.respond(file=audio_file, voice_note=True)
+        if os.path.exists(audio_file):
+          os.remove(audio_file)
         continue
 
+      # ইউজার সার্ভিস বা গ্রুপ দেখতে চাইলে
       if chat_id not in user_states:
-        if (
-            "সার্ভিস" in text_lower
-            or "service" in text_lower
-            or "servis" in text_lower
-        ):
+        if "সার্বিস" in text_lower or "service" in text_lower or "servis" in text_lower:
           user_states[chat_id] = "service"
           service_text = (
               "বয়স 20 বছর, সাইজঃ 34\" গায়ের রঙ ফর্সা।\n\n"
@@ -80,15 +104,15 @@ async def process_queue():
               "✊প্রেম ভালোবাসা বিয়ের কথা বললে ব্লক খাবেন। \n"
               "🔞 সার্ভিস নিয়ে ভাল লাগলে আবার আসবেন।💕"
           )
-          await event.respond(service_text)
-          message_queue.task_done()
+          async with event.client.action(chat_id, "record-audio"):
+            audio_file = await text_to_speech(service_text)
+            await asyncio.sleep(2)
+          await event.respond(file=audio_file, voice_note=True)
+          if os.path.exists(audio_file):
+            os.remove(audio_file)
           continue
 
-        elif (
-            "গ্রুপ" in text_lower
-            or "group" in text_lower
-            or "gruf" in text_lower
-        ):
+        elif "গ্রুপ" in text_lower or "group" in text_lower or "gruf" in text_lower:
           user_states[chat_id] = "group"
           group_text = (
               "আপনারা কেউ গ্রুপ কিনলে আমাদের কাছ থেকে কিনতে পারেন\n\n"
@@ -127,26 +151,33 @@ async def process_queue():
               "━━━━━━━━━━━━━━━━━━\n"
               "টাকা দেওয়ার আগে কোন গ্রুপ দেওয়া হয় না যারা কিনবেন শুধুমাত্র তারাই ইনবক্সে মেসেজ করেন গ্রুপ কেনার জন্য এই আইডিতে মেসেজ করেন: @SamiyaSamiya9"
           )
-          await event.respond(group_text)
-          message_queue.task_done()
+          async with event.client.action(chat_id, "record-audio"):
+            audio_file = await text_to_speech(group_text)
+            await asyncio.sleep(2)
+          await event.respond(file=audio_file, voice_note=True)
+          if os.path.exists(audio_file):
+            os.remove(audio_file)
           continue
         else:
           intro_reply = (
-              "স্বাগতম! আপনার কি লাগবে?\n\n১. **সার্ভিস** (কল বা চ্যাট)\n২."
-              " **গ্রুপ** (লিস্ট দেখতে চান)\n\nদয়া করে লিখে জানান আপনার কোনটি লাগবে।"
+              "স্বাগতম! আপনার কি লাগবে?\n\n১. সার্ভিস (কল বা চ্যাট)\n২. গ্রুপ (লিস্ট দেখতে চান)\n\nদয়া করে লিখে জানান আপনার কোনটি লাগবে।"
           )
-          await event.respond(intro_reply, parse_mode="md")
-          message_queue.task_done()
+          async with event.client.action(chat_id, "record-audio"):
+            audio_file = await text_to_speech(intro_reply)
+            await asyncio.sleep(2)
+          await event.respond(file=audio_file, voice_note=True)
+          if os.path.exists(audio_file):
+            os.remove(audio_file)
           continue
 
+      # সাধারণ কথার জন্য জেমিনি দিয়ে উত্তর তৈরি করা
       prompt = (
-          "তুমি একজন রিয়েল তরুণী মেয়ে (Samiya)। টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে"
-          f' যেভাবে একদম শর্ট, মিষ্টি ও প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে'
-          f' উত্তর দাও। মেসেজটি হলো: "{user_text}"'
+          "তুমি একজন রিয়েল তরুণী মেয়ে (Samiya)। টেলিগ্রামে কেউ তোমাকে মেসেজ দিলে যেভাবে"
+          f' একদম শর্ট, মিষ্টি ও প্রাকৃতিকভাবে বাংলায় চ্যাট করো, ঠিক সেভাবে উত্তর দাও। মেসেজটি হলো: "{user_text}"'
       )
 
       try:
-        ai_response = model.generate_content(prompt)
+        ai_response = await asyncio.to_thread(model.generate_content, prompt)
         reply_text = (
             ai_response.text.strip()
             if ai_response.text
@@ -155,39 +186,49 @@ async def process_queue():
       except Exception:
         reply_text = "উহু, এই মুহূর্তে একটু ব্যস্ত আছি।"
 
-      audio_path = f"voice_{chat_id}.mp3"
-      try:
-        communicate = edge_tts.Communicate(reply_text, VOICE_NAME)
-        await communicate.save(audio_path)
-        await event.respond(file=audio_path, voice_note=True)
-      except Exception:
-        await event.respond(reply_text)
-      finally:
-        if os.path.exists(audio_path):
-          os.remove(audio_path)
+      # ভয়েস নোট তৈরি ও পাঠানো
+      async with event.client.action(chat_id, "record-audio"):
+        audio_file = await text_to_speech(reply_text)
+        await asyncio.sleep(2)
 
+      await event.respond(file=audio_file, voice_note=True)
+
+      if os.path.exists(audio_file):
+        os.remove(audio_file)
+
+    except FloodWaitError as e:
+      await asyncio.sleep(e.seconds)
     except Exception as e:
-      print(f"ত্রুটি: {e}")
+      print(print(f"Error: {e}"))
     finally:
       message_queue.task_done()
 
+  is_processing = False
+
 
 @client.on(events.NewMessage(incoming=True, func=lambda e: e.is_private))
-async def handle_userbot_message(event):
-  chat_id = event.sender_id
+async def handle_incoming_message(event):
+  sender_id = event.sender_id
+  chat_id = event.chat_id
   user_text = event.raw_text
+
   if not user_text:
     return
-  await message_queue.put((event, user_text, chat_id))
+
+  # কিউ-তে মেসেজ যোগ করা (সিরিয়ালি উত্তর দেওয়ার জন্য)
+  await message_queue.put((sender_id, event, user_text, chat_id))
+
+  global is_processing
+  if not is_processing:
+    asyncio.create_task(process_queue())
 
 
-async def main():
-  print("রিয়েল আইডি ইউজারবট চালু হচ্ছে...")
-  asyncio.create_task(process_queue())
-  await client.start()
-  print("ইউজারবট সফলভাবে রান করছে!")
-  await client.run_until_disconnected()
+def main():
+  print("Samiya Userbot is starting with all features...")
+  client.start()
+  print("Samiya Userbot is Online and running!")
+  client.run_until_disconnected()
 
 
 if __name__ == "__main__":
-  asyncio.main() if hasattr(asyncio, "main") else asyncio.run(main())
+  main()
