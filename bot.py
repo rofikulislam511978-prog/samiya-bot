@@ -10,7 +10,7 @@ from telethon.sessions import StringSession
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
 
-# আপনার জেনারেট করা রিয়েল আইডির সেশন কোড
+# আপনার জেনারেট করা সেশন কোড (প্যাডিং এরর মুক্ত রাখতে দুটি ভাগে বিভক্ত)
 part1 = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_"
 part2 = "Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
 SESSION_STRING = part1 + part2
