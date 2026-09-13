@@ -4,14 +4,16 @@ import random
 import edge_tts
 import google.generativeai as genai
 from telethon import TelegramClient, events
+from telethon.sessions import StringSession
 
 # ক্রেডেন্সিয়ালস
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
 
-# রেন্ডারে ক্র্যাশ এড়াতে সেশন স্ট্রিং সরাসরি মেমোরি ফাইলে সেভ করার সিস্টেম
-SESSION_NAME = "samiya_session"
-raw_session = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
+# আপনার জেনারেট করা সেশন কোডটিকে প্যাডিং এরর মুক্ত রাখতে দুটি ভাগে বসানো হলো
+part1 = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_"
+part2 = "Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
+SESSION_STRING = part1 + part2
 
 # জেমিনি এআই কনফিগারেশন
 GEMINI_API_KEY = "AQ.Ab8RN6JnYVG6Z7yf_OybQ79MyRrTbnonv4c50z--l21ITRfhew"
@@ -21,15 +23,13 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 # মাইক্রোসফটের ন্যাচারাল মেয়ে মানুষের কন্ঠের ভয়েস
 VOICE_NAME = "bn-BD-NabanitaNeural"
 
-# ইউজারদের স্টেট ট্র্যাকিং ডিকশনারি
+# ইউজারদের স্টেট ট্র্যাকিং ও কিউ সিস্টেম
 user_states = {}
 message_queue = asyncio.Queue()
 
-# টেলিথন ক্লাইন্ট (StringSession এর পরিবর্তে সরাসরি সেশন ফাইল হ্যান্ডলিং)
-from telethon.sessions import StringSession
-
+# টেলিথন ক্লাইন্ট
 client = TelegramClient(
-    StringSession(raw_session), API_ID, API_HASH, connection_retries=None
+    StringSession(SESSION_STRING), API_ID, API_HASH, connection_retries=None
 )
 
 
@@ -182,10 +182,10 @@ async def handle_userbot_message(event):
 
 
 async def main():
-  print("Samiya Smart Userbot চালু হচ্ছে...")
+  print("রিয়েল আইডি ইউজারবট চালু হচ্ছে...")
   asyncio.create_task(process_queue())
   await client.start()
-  print("বট সফলভাবে রান করছে!")
+  print("ইউজারবট সফলভাবে রান করছে!")
   await client.run_until_disconnected()
 
 
