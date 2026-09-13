@@ -6,11 +6,11 @@ import google.generativeai as genai
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 
-# ক্রেডেন্সিয়ালস
+# আপনার টেলিগ্রাম API_ID এবং API_HASH
 API_ID = 38710926
 API_HASH = "9047aad732a7b1793fcd1857c56d7d3f"
 
-# আপনার জেনারেট করা সেশন কোডটিকে প্যাডিং এরর মুক্ত রাখতে দুটি ভাগে বসানো হলো
+# আপনার জেনারেট করা রিয়েল আইডির সেশন কোড
 part1 = "1BVtsOHsBu3KiEn8jeyhzUXzezWrOpBBb0MwdRHI_oLamWaFNonkk9JkQ0008nheuaVmIQb146LF6xJtJ1FDqh2A_58-y_28NIOH4a15wqkyQdegTbvHMCzwoMdIXEWZfNfnBAquwVCbSVBrJKVHJxzz60dfvowHMC8fu_"
 part2 = "Choak6CvX1aEQN6LyFVZwyiueCpHT3vijFtZ8mSxm70qmz6rwin63YJW3SzXKDZLAjZxKhGi44vVRyUDMRM-aTDs3U11QiKUffUMvaXsC-KBXZ456uPk0NPPqhnKeYc1mia4g1Ih00zpkUfMaRJw5CRqfxA84pnNM0FBD12_A-yB9gxid40oQ="
 SESSION_STRING = part1 + part2
@@ -190,4 +190,4 @@ async def main():
 
 
 if __name__ == "__main__":
-  asyncio.run(main())
+  asyncio.main() if hasattr(asyncio, "main") else asyncio.run(main())
